@@ -1,0 +1,14 @@
+<style>
+img.user-thumb {
+    width: 35px;
+}
+div.users {
+    margin: 25px auto;
+    width: 80%;
+}
+</style>
+ <div class="users">
+<? foreach ($users as $user): ?>
+<img class="user-thumb" src="/uploads/gliph/user-<?= $user->gliph_id ?>-small.png" title="<?= $user->{'facet:Username'} ?>">
+<? endforeach; ?>
+ </div> 

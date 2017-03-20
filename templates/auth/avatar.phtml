@@ -1,0 +1,148 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-load-image/2.10.0/load-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.6.0/js/canvas-to-blob.min.js"></script>
+<style>
+div#avatar-preview {
+    position: relative;
+    border-radius: 50%;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+    overflow: hidden;
+    text-align: center;
+    line-height: 150px;
+}
+div#avatar-preview canvas, div#avatar-preview img {
+    display: inline;
+    height: 100%;
+    width: auto;
+    min-width: 100%;
+    margin: 0 auto;
+}
+input[type="file"] {
+    display: none;
+}
+.custom-file-upload {
+    border: 1px solid #CCC;
+    display: block;
+    padding: 6px 12px;
+    cursor: pointer;
+    width: 250px;
+    text-align: center;
+    margin: 10px auto;
+}
+
+button#save {
+    display: none;
+    border: 1px solid #CCC;
+    background-color: #FFF;
+    padding: 6px 12px;
+    margin: 10px auto;
+    width: 250px;
+    cursor: pointer;
+}
+
+div.upload-status {
+    display: none;
+    margin: 10px auto;
+    width: 250px;
+    height: 20px;
+}
+
+div.upload-status-progress {
+    background-color: #CCC;
+    height: 100%;
+    width: 0%;
+    transition: width 1s;
+    transition-timing-function: linear;
+}
+
+div.avatar-set {
+    display: none;
+    margin: 10px auto;
+    width: 350px;
+    height: 20px;
+    color: #106324;
+    font-weight: bold;
+    text-align: center;
+}
+
+
+</style>
+
+<section id="content">
+<label for="files" class="custom-file-upload">Tap Here to Choose an Avatar</label>
+
+<input type="file" id="files" accept="image/*">
+
+<div id="avatar-preview"></div>
+
+<button id="save">Make This Your Avatar</button>
+
+
+<div class="upload-status">
+    <div class="upload-status-progress"></div>
+</div>
+
+<div class="avatar-set">
+    Done! This is now your avatar!
+</div>
+</section>
+
+<script>
+
+function handleFileSelect(evt) {
+    var file = evt.target.files[0];
+    $('div.avatar-set').hide();
+    $('#avatar-preview').text('Processing...');
+
+    loadImage(
+        file,
+        function (img) {
+            $('#avatar-preview').html(img);
+            $('button#save').show();
+            //document.body.appendChild(img);
+        },
+        {
+            maxWidth: 700,
+            maxHeight: 500,
+            canvas: true
+        }
+    );
+}
+
+document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+$(document).ready(function(){
+    $('button#save').on('click', function(){
+        $('button#save').hide();
+        $('div.upload-status').show();
+        img = $('#avatar-preview canvas')[0];
+        img.toBlob(
+            function (blob) {
+                var oReq = new XMLHttpRequest();
+                oReq.upload.addEventListener('progress', updateProgress);
+                oReq.open('POST', '/media', true);
+                oReq.onload = function (oEvent) {
+                    postData = {
+                        mediaId: JSON.parse(this.responseText).mediaId
+                    };
+                    $.post('/avatar', postData, function(response) {
+                        $('div.upload-status').hide();
+                        $('div.avatar-set').show();
+                        $('div.upload-status-progress').css('width', '0%');
+                    });
+                };
+
+                oReq.send(blob);
+            },
+            'image/jpeg'
+        );
+    });
+});
+
+function updateProgress(e) {
+    percent = e.loaded / e.total * 100;
+    $('div.upload-status-progress').css('width', percent + '%');
+    console.log(e);
+}
+</script>

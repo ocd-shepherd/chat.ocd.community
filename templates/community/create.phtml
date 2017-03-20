@@ -1,0 +1,41 @@
+<style>
+#path.available {
+    border-color: #0F0;
+}
+#path.unavailable {
+    border-color: #F00;
+}
+#path.short {
+    border-color: #00F;
+}
+</style>
+<section id="content">
+<form method="post" action="<?= $this->url('community-create') ?>" class="auth">
+    <label for="path">Path:</label>
+    /c/<input type="text" name="path" placeholder="path" id="path"><br>
+
+    <label for="name">Name:</label>
+    <input type="text" name="name" placeholder="Community name"><br>
+
+    <input type="hidden" name="__csrf_value" value="<?= $this->csrfToken() ?>">
+
+    <input type="submit" value="Create Community">
+</form>
+</section>
+<script>
+    $("#path").keyup(function() {
+        $('#path').removeClass('available unavailable short');
+
+        if ($('#path').val().length < 3) {
+            console.log('Too short');
+            $('#path').addClass('short');
+            return false;
+        }
+
+        $.getJSON('<?= $this->url('community-path-available') ?>', {path: $('#path').val()}, function(data) {
+            console.log(data);
+            $('#path').addClass((data) ? 'available' : 'unavailable');
+        });
+    });
+</script>
+

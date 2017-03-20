@@ -1,0 +1,118 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.1/zxcvbn.js"></script>
+
+<style>
+input[type="checkbox"]#show-pass {
+    display:none;
+}
+input[type="checkbox"]#show-pass + label {
+    display: inline-block;
+    float: right;
+    width: 20px;
+    height: 20px;
+    cursor:pointer;
+    transform: translateY(-45px);
+}
+form, .mdl-button, .mdl-textfield {
+    width: 100%;
+}
+label#password-visibility-toggle > i.material-icons {
+    color: rgb(150,150,150);
+}
+</style>
+
+
+
+<div class="mdl-grid" style="width: 340px;">
+
+    <form method="post" action="<?= $this->url('auth-register') ?>">
+    <div class="mdl-cell mdl-cell--12-col">
+        <h5>Register</h5>
+    </div>
+
+
+
+    <div class="mdl-cell mdl-cell--12-col">
+      <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+        <input class="mdl-textfield__input" type="text" id="username" name="username" maxlength="20" minlength="3" pattern="[A-Z,a-z,0-9,-,\.,_]*" autocomplete="off">
+        <label class="mdl-textfield__label" for="username">Username</label>
+        <span class="mdl-textfield__error">Allowed: A-Z, 0-9, dash, period, underscore.</span>
+      </div>
+    </div>
+
+
+    <div class="mdl-cell mdl-cell--12-col">
+      <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+        <input class="mdl-textfield__input" type="password" id="password" name="password" minlength="6" autocomplete="new-password">
+        <label class="mdl-textfield__label" for="password">Password</label>
+      </div>
+
+        <input type="checkbox" id="show-pass">
+        <label for="show-pass" id="password-visibility-toggle"><i class="material-icons">visibility</i></label>
+        <div class="mdl-tooltip mdl-tooltip--large password-visibility-hint" for="password-visibility-toggle">
+            Use this button to make sure your password is typed correctly.
+        </div>
+    </div>
+
+
+    <div id="password-feedback">
+        <ul id="password-suggestions">
+        </ul>
+    </div>
+
+    <input type="hidden" name="__csrf_value" value="<?= $this->csrfToken() ?>">
+
+
+    <div class="mdl-cell mdl-cell--12-col">
+        <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent">
+          Register
+        </button>
+    </div>
+</form>
+</div>
+
+
+<script>
+$(document).ready(function() {
+$.toggleShowPassword({
+    field: '#password',
+    control: '#show-pass'
+});
+    $("#username").keyup(function() {
+        $('#username').removeClass('available unavailable short');
+
+        if ($('#username').val().length < 3) {
+            return false;
+        }
+
+        $.getJSON('<?= $this->url('auth-username-available') ?>', {username: $('#username').val()}, function(data) {
+            if (!data) {
+                $('#username').parent().addClass('is-invalid');
+
+                $error = $('#username').siblings('.mdl-textfield__error');
+                $error.data('original-message', $error.text())
+                      .text('That username is taken.');
+            } else {
+                $error = $('#username').siblings('.mdl-textfield__error');
+                $error.text($error.data('original-message'));
+            }
+        });
+    });
+
+    $("#password").keyup(function() {
+        result = zxcvbn($('#password').val());
+        //$('#console').text(JSON.stringify(result, null, '\t'));
+        $('#password-suggestions').html('');
+        //console.log(result);
+        if (result.feedback.warning) {
+            $('#password-suggestions').append('<li>' + result.feedback.warning + '</li>');
+        }
+        if (result.feedback.suggestions.length > 0) {
+            $(result.feedback.suggestions).each(function() {
+                //$('#password-suggestions').append('<li>' + this + '</li>');
+            });
+        }
+    });
+
+});
+
+</script>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>var APP_VERSION = '<?= Common\Helper\Git::version()['short'] ?>';</script>
+    <?= $this->headTitle('OChatD')->setSeparator(' - ')->setAutoEscape(false) ?>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <meta name="theme-color" content="#3f51b5">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=M4ozyrdgLp">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png?v=M4ozyrdgLp" sizes="32x32">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png?v=M4ozyrdgLp" sizes="16x16">
+    <link rel="manifest" href="/manifest.json?v=M4ozyrdgLp">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg?v=M4ozyrdgLp" color="#5bbad5">
+    <link rel="shortcut icon" href="/favicon.ico?v=M4ozyrdgLp">
+
+    <link rel="stylesheet" href="/material-icons/material-icons.css">
+    <link rel="stylesheet" href="/mdl/material.indigo-pink.min.css">
+    <link rel="stylesheet" href="/roboto/roboto.css">
+    <link rel="stylesheet" href="/material.css?9">
+    <link rel="stylesheet" href="/animate.css?1">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+    <script defer src="/mdl/material.min.js"></script>
+    <script src="/eventbus.min.js"></script>
+    <script src="/global.js?3"></script>
+    <script src="/media-manager.js?1"></script>
+</head>
+<body>
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+  <header class="chat-header mdl-layout__header">
+    <div class="mdl-layout__header-row">
+
+    <div class="mdl-layout-icon-svg">
+        <svg class="logo inline-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve">
+            <path d="M31.805,41.953c0-5.497,2.443-10.57,6.546-14.639c-0.238-0.004-0.474-0.013-0.712-0.013  c-16.615,0-30.087,9.948-30.087,22.221c0,9.36,7.837,17.36,18.926,20.634l-0.585,12.604l8.693-11.016c0,0,1.642,0,3.053,0  c7.925,0,15.129-2.267,20.502-5.965C43.185,63.725,31.805,53.826,31.805,41.953z"></path>
+
+            <g>
+                <path d="M76.966,82.062l-11.95-15.139h-2.081c-17.693,0-32.089-10.865-32.089-24.223c0-13.355,14.396-24.221,32.089-24.221   c17.691,0,32.085,10.866,32.085,24.221c0,9.637-7.348,18.172-18.857,22.078L76.966,82.062z M62.935,22.48   c-15.487,0-28.089,9.071-28.089,20.221c0,11.15,12.602,20.223,28.089,20.223h4.021l5.437,6.889l-0.369-7.949l1.504-0.443   C84.153,58.281,91.02,50.934,91.02,42.701C91.02,31.551,78.421,22.48,62.935,22.48z"></path>
+            </g>
+        </svg>
+    </div>
+
+      <span class="mdl-layout__title">
+        <? if ($this->routeParam('username')): ?>
+
+            <?= $this->routeParam('username') ?>
+
+        <? endif; ?>
+      </span>
+      <div class="mdl-layout-spacer"></div>
+
+      <nav class="mdl-navigation">
+
+        <? if ($this->ident()): ?>
+
+            <button id="menu-upper-right"
+                    class="mdl-button mdl-js-button mdl-button--icon" >
+              <i class="material-icons">more_vert</i>
+            </button>
+
+            <ul class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect"
+                for="menu-upper-right">
+
+                <a class="mdl-menu__item" href="<?= $this->url('community-chat', ['community' => 'ocd']) ?>">Chat</a>
+                <a class="mdl-menu__item" href="<?= $this->url('avatar-form') ?>">Change Avatar</a>
+                <a class="mdl-menu__item" href="<?= $this->url('auth-change-password-form') ?>">Change Password</a>
+                <a class="mdl-menu__item mdl-menu__item--full-bleed-divider" href="<?= $this->url('auth-logout') ?>">Logout</a>
+
+                <div disabled class="mdl-menu__item" id="app-version">...</div>
+                <script>document.getElementById('app-version').innerText = APP_VERSION;</script>
+
+            </ul>
+
+        <? else: ?>
+
+            <a class="mdl-navigation__link" href="<?= $this->url('auth-login-form') ?>">Login</a>
+            <a class="mdl-navigation__link" href="<?= $this->url('auth-register-form') ?>">Register</a>
+
+        <? endif ?>
+
+      </nav>
+    </div>
+  </header>
+
+
+  <?= $this->content ?>
+</div>
+
+</body>
+</html>

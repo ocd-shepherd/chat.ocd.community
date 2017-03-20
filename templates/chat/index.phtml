@@ -1,0 +1,913 @@
+<div class="preload">
+    <span><img class="narwhal animated infinite tada" src="/narwhal.svg"></span>
+</div>
+  <div class="mdl-layout__drawer">
+    <span class="mdl-layout-title">Coming Soon</span>
+    <nav class="mdl-navigation">
+      <a class="mdl-navigation__link" href="">Stuff</a>
+      <a class="mdl-navigation__link" href="">Will</a>
+      <a class="mdl-navigation__link" href="">Be</a>
+      <a class="mdl-navigation__link" href="">Here</a>
+    </nav>
+  </div>
+
+  <main id="content" class="mdl-layout__content stretch">
+    <div class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
+    <div id="chat-log">
+    </div>
+  </main>
+
+  <footer class="mdl-mega-footer footer-light mdl-shadow--8dp">
+    <form id="compose">
+
+    <div class="mdl-grid">
+
+        <div class="attach mdl-button mdl-js-button mdl-js-ripple-effect">
+          <label id="attach-media-button" for="files"></label>
+          <input type="file" id="files" accept="image/*" multiple="multiple">
+          <i class="material-icons">attach_file</i>
+        </div>
+
+        <textarea id="compose-message" placeholder="Message" autocomplete="off" autofocus="true" spellcheck="true"></textarea>
+
+        <button class="send mdl-button mdl-js-button mdl-js-ripple-effect">
+          <i class="material-icons">send</i>
+        </button>
+    </div>
+
+
+    <div id="pending-media"></div>
+    </form>
+
+    <div id="chat-snackbar" class="mdl-js-snackbar mdl-snackbar">
+      <div class="mdl-snackbar__text"></div>
+      <button class="mdl-snackbar__action" type="button"></button>
+    </div>
+
+  </footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/8.2.2/markdown-it.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.17.1/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-load-image/2.10.0/load-image.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.6.0/js/canvas-to-blob.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/autosize.js/3.0.20/autosize.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.imagesloaded/4.1.1/imagesloaded.pkgd.min.js"></script>
+<script src="/favico.js?1"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/lib/js/emojione.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/css/emojione.min.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Caret.js/0.3.1/jquery.caret.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/at.js/1.5.2/js/jquery.atwho.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/at.js/1.5.2/css/jquery.atwho.min.css">
+
+<script src="/emoji-list.js?1"></script>
+
+<script src="/media-uploader.js?1"></script>
+<script src="/chat.js?1"></script>
+
+<? if ($_SERVER['HTTP_HOST'] === 'ocdchat.dev'): ?>
+    <script src="/socket.io.min.js"></script>
+    <script>
+        var socket = io('localhost:9999');
+    </script>
+<? else: ?>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+    </script>
+<? endif;?>
+
+<script>
+
+<? if ($this->routeParam('community')): ?>
+
+    var ROOM_ID = 'dd0c62bd-c4f2-4286-affa-256bfcc93955';
+
+    <? if ($this->routeParam('community') == 'ocdmods'): ?>
+        var ROOM_ID = 'e6ddc009-a7c0-4bf9-8637-8a3da4d65825';
+    <? endif; ?>
+
+    <? if ($this->routeParam('community') == 'test'): ?>
+        var ROOM_ID = 'f68c5b32-ab99-4955-acc8-3f9f887dcf22';
+    <? endif; ?>
+
+<? endif; ?>
+
+<? if ($this->routeParam('username')): ?>
+
+    var ROOM_ID = '<?= $this->privateChat($this->routeParam('username')) ?>';
+
+<? endif; ?>
+
+var thisChat = new Chat(ROOM_ID);
+
+var logoConnected = function() {
+    setTimeout(function(){
+    $('svg.logo')
+        .removeClass('disconnected')
+        .addClass('connected');
+    }, 500);
+}
+var logoDisconnected = function() {
+    $('svg.logo')
+        .removeClass('connected')
+        .addClass('disconnected');
+}
+
+socket.on('connect', function(){
+    socket.emit('join-room', ROOM_ID);
+    logoConnected();
+});
+
+socket.on('disconnect', function(){
+    logoDisconnected();
+});
+
+socket.on('new-message', function (data) {
+    thisChat.loadMessages(3); // todo implement 'since'
+});
+
+socket.on('media-upload-progress', function (data) {
+    displayMediaProgress(data.mediaId, data.percent);
+});
+
+socket.on('media-upload-complete', function (mediaId) {
+    displayMedia(mediaId);
+});
+
+var notification = new Audio('/notification.mp3');
+var myStorage = localStorage;
+
+EventBus.addEventListener('chat:message-loaded', renderMessage);
+
+$('div#chat-log').on('click', 'span.sender.source-native', function() {
+    window.location = '/p/' + $(this).text().replace(/:/,'');
+});
+
+moment.updateLocale('en', {
+    relativeTime : {
+        future: 'just now'
+    }
+});
+
+
+var md = markdownit({
+  html: false,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+});
+
+var defaultRender = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
+};
+
+md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+    tokens[idx].attrPush(['target', '_blank']); // open links in new tab
+    return defaultRender(tokens, idx, options, env, self);
+};
+
+/**
+ * Use old emoji check...
+ * https://github.com/Modernizr/Modernizr/issues/1688
+ */
+Modernizr.addTest('emoji', function() {
+  if (!Modernizr.canvastext) return false;
+  var node = document.createElement('canvas'),
+      ctx = node.getContext('2d');
+  ctx.textBaseline = 'top';
+  ctx.font = '32px Arial';
+  ctx.fillText('\ud83d\ude03', 0, 0); // "smiling face with open mouth" emoji
+  return ctx.getImageData(16, 16, 1, 1).data[0] !== 0;
+});
+
+function renderMessage(event, message) {
+    if (!message || message.senderName == 'ocdbot') {
+        return;
+    }
+
+    var mTimestamp      = moment.unix(message.timestamp);
+    var timeDisplay     = mTimestamp.fromNow();
+    var timeDisplayAlt  = mTimestamp.format('YYYY-MM-DD HH:mm:ss');
+    if (Modernizr.emoji) {
+        var $messageRendered = $('<div class="message">'+ md.render(message.message) + '</div>');
+    } else {
+        var $messageRendered = $('<div class="message">'+ emojione.toImage(md.render(message.message)) + '</div>');
+    }
+
+    var $message = $('<div class="chat-message" id="'+message.id+'"></div>');
+
+    tsId = 'ts-' + message.timestamp.replace(/\./,'');
+    $message.append(
+        '<span class="rounded"><img class="avatar" src="' + message.senderAvatar + '"></span>' +
+        '<span class="timestamp" id="'+tsId+'" data-timestamp="'+message.timestamp+'">' + timeDisplay + '</span>' +
+        '<div class="mdl-tooltip mdl-tooltip--large" for="'+tsId+'">' +
+            timeDisplayAlt +
+        '</div>' +
+        '<span class="sender source-'+ message.source +'">' + message.senderName + ':</span> '
+    );
+
+    $message.append($messageRendered);
+
+    function ytVidId(url) {
+      var p = /^(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})(?:\S+)?$/;
+      return (url.match(p)) ? RegExp.$1 : false;
+    }
+
+    $messageRendered.find('a').each(function(_, link) {
+        if (ytId = ytVidId($(link).attr('href'))) {
+            var $div = $('<div class="message media"></div>');
+            var $img = $('<a class="yt-thumbnail-link" href="' + $(link).attr('href') + '" target="_blank"><i class="material-icons">play_circle_filled</i><img class="chat-media yt-thumbnail" src="https://img.youtube.com/vi/' +ytId+ '/hqdefault.jpg"></a>');
+            $message.append($div.append($img));
+        }
+    });
+
+    if (message.media && message.source =='gliph') {
+        for (var j=0; j<message.media.length; j++) {
+            if (message.media[j].thumbnail) {
+                $message.append('<div class="message"><a href="'+ message.media[j].fullsize +'" target="_blank"><img src="' + message.media[j].thumbnail + '"></a></div>');
+            } else {
+                $message.append('<div class="message"><a href="'+ message.media[j].fullsize +'" target="_blank"><img src="' + message.media[j].fullsize + '"></a></div>');
+            }
+        }
+    }
+
+    if (message.media && message.source =='native') {
+        for (var i=0; i<message.media.length; i++) {
+            var parts = message.media[i].thumbnail.split('.');
+            var $div = $('<div class="message media"><span class="loaded"></span></div>');
+            var $img = $('<img alt="Loading..." class="chat-media '+parts[1]+'" id="'+parts[0]+'" data-src="/uploads/default/' + message.media[i].thumbnail + '">');
+            $img.attr('src', $img.data('src'));
+
+            if (message.media[i].fullsize) {
+                var $link = $('<a href="/uploads/default/'+ message.media[i].fullsize +'" target="_blank"></a>');
+                $link.append($img);
+                $message.append($div.append($link));
+            } else {
+                var $link = $('<a href="/uploads/default/'+ message.media[i].thumbnail +'" target="_blank"></a>');
+                $link.append($img);
+                $message.append($div.append($link));
+            }
+        }
+    }
+
+    var sortval = parseFloat(message.timestamp);
+    var $first = $('.chat-message').first();
+
+    $message.imagesLoaded().progress(function(instance, image) {
+        if (image.isLoaded) {
+            EventBus.dispatch('chat:message-media-loaded', $message, image);
+        }
+    });
+
+    if ($first.length === 0) {
+        $('#chat-log').append($message);
+        componentHandler.upgradeDom();
+        EventBus.dispatch('chat:first-message-rendered');
+        return;
+    }
+
+    if (sortval <= $first.find('span.timestamp').data('timestamp')) {
+        $message.insertBefore($first);
+        componentHandler.upgradeDom();
+        EventBus.dispatch('chat:message-prepended');
+        return;
+
+    }
+
+    var $last = $('.chat-message').last();
+    if (sortval >= $last.find('span.timestamp').data('timestamp')) {
+        $message.insertAfter($last);
+        componentHandler.upgradeDom();
+        EventBus.dispatch('chat:message-appended');
+        notification.play();
+        return;
+    }
+
+    // Binary search to find correct position for the message.
+    var count = 0;
+    var $messages = $('.chat-message');
+    do {
+       var index = parseInt($message.length / 2)
+       var $compare = $message.eq(index);
+       var compare = $compare.data('timestamp');
+       if (sortval === compare) {
+          break; // hmmm
+       } else if (sortval < compare) {
+          $messages = $messages.slice(index, $messages.length);
+       } else {
+          $messages = $messages.slice(0, index);
+       }
+    } while ($messages.length > 1);
+
+    if (sortval === compare || sortval > compare) {
+        $message.insertAfter($compare);
+    } else {
+        $message.insertBefore($compare);
+    }
+    console.log('Binary-inserted message');
+}
+
+function displayMediaProgress(mediaId, percent) {
+    percentRounded = Math.round(percent);
+    $('img#'+mediaId).parent().find('span.loaded').text(percentRounded + '%');
+};
+
+function displayMedia(mediaId) {
+    //var mediaId = e.target;
+    var $img    = $('img#'+mediaId);
+    $img.imagesLoaded().progress(function(instance, image) {
+        if (image.isLoaded) {
+            EventBus.dispatch('chat:message-media-loaded', null, image);
+        }
+    });
+    $img.removeAttr('src').attr('src', $img.data('src'));
+    $img.parent().find('span.loaded').remove();
+};
+
+function announceMediaProgress(e) {
+    socket.emit('media-upload-progress', e.target);
+};
+
+function announceMediaReady(e) {
+    socket.emit('media-upload-complete', e.target);
+};
+
+EventBus.addEventListener('chat:media-upload-complete', announceMediaReady);
+EventBus.addEventListener('chat:media-upload-progress', announceMediaProgress);
+
+setInterval(function(){
+    $('span.timestamp').each(function() {
+        mTimestamp = moment.unix($(this).data('timestamp'));
+        $(this).text(mTimestamp.fromNow());
+    });
+}, 10000);
+
+function updateScroll(el) {
+    var element = document.getElementById(el);
+    element.scrollTop = element.scrollHeight;
+}
+
+EventBus.addEventListener('window:resize', function() {
+    updateScroll('content');
+});
+
+function sendMessage(mediaFiles, callback) {
+    // TODO: Retry, then handle error.
+    var messageText = emojione.shortnameToUnicode($('#compose-message').val());
+     $.post('/messages/' + ROOM_ID, { message: messageText, media: mediaFiles }, function(messageId) {
+         console.log('Message sent');
+         $('#compose-message').removeAttr('disabled');
+         $('#compose-message').val('');
+         myStorage.setItem('compose:'+ROOM_ID, $('#compose-message').val());
+         myStorage.setItem('compose:selectionStart:'+ROOM_ID, 0);
+         myStorage.setItem('compose:selectionEnd:'+ROOM_ID, 0);
+         $('button#send-button').removeAttr('disabled');
+         $('button#send-button').html('Send &raquo;');
+         $('#pending-media').html('');
+         autosize.update($('#compose-message'));
+         $('#compose-message').focus();
+         if (callback) {
+             callback(messageId)
+         }
+     });
+}
+
+$(document).ready(function() {
+
+    thisChat.loadMessages(20);
+
+    // Restore cursor position on unfinished message.
+    //
+    if (myStorage.getItem('compose:'+ROOM_ID)) {
+        //$('#compose-message').focus();
+        $('#compose-message').val(myStorage.getItem('compose:'+ROOM_ID));
+        $('#compose-message').selectRange(
+            myStorage.getItem('compose:selectionStart:'+ROOM_ID),
+            myStorage.getItem('compose:selectionEnd:'+ROOM_ID)
+        );
+    }
+
+    $('#compose-message').on('select keyup mouseup', function(e) {
+        myStorage.setItem('compose:'+ROOM_ID, $('#compose-message').val());
+
+        // Weird bug if you click to unselect text, it actually takes a couple ms to reflect in the dom.
+        setTimeout(function() {
+            myStorage.setItem('compose:selectionStart:'+ROOM_ID, $('#compose-message')[0].selectionStart);
+            myStorage.setItem('compose:selectionEnd:'+ROOM_ID, $('#compose-message')[0].selectionEnd);
+        }, 10);
+    });
+
+    $('#compose-message').each(function() {
+        autosize(this);
+    }).on('autosize:resized', function() {
+        newHeight = $('form#compose').height() + 1;
+        $('.stretch-height').css('height', newHeight + 'px');
+        $('.stretch-height').css('line-height', newHeight + 'px');
+        updateScroll('content');
+    });
+
+    componentHandler.upgradeDom();
+
+    //setTimeout(function() {
+    //    $('.mdl-layout__drawer-button i.material-icons').addClass('mdl-badge mdl-badge--overlap').attr('data-badge', 4);
+    //    componentHandler.upgradeDom();
+    //}, 1000);
+
+
+
+});
+
+$('form#compose').submit(function(event) {
+
+    event.preventDefault();
+
+    $mediaToUpload = $('div#pending-media').children();
+
+    if ($mediaToUpload.length == 0 && !$('#compose-message').val().trim()) {
+        return;
+    }
+
+    $('#compose-message').attr('disabled','disabled');
+    $('#send-button').attr('disabled','disabled');
+
+    // TODO overlay div over pending media?
+    var messageMedia = [];
+
+    for (var i = 0; i < $mediaToUpload.length; i++) {
+
+        $mediaDiv = $($mediaToUpload[i]);
+
+        var thisMedia = {};
+
+        if ($mediaDiv.data('lowres-blob')) {
+            thisMedia.lowRes = { blob: $($mediaToUpload[i]).data('lowres-blob') };
+        }
+
+        if ($mediaDiv.data('highres-blob')) {
+            thisMedia.highRes = { blob: $($mediaToUpload[i]).data('highres-blob') };
+        }
+
+        messageMedia.push(thisMedia);
+    }
+
+    if (messageMedia.length > 0) {
+        var uploader = new MediaUploader(messageMedia);
+
+        uploader.fetchMediaIdsForUpload(function() {
+            sendMessage(this.getMediaFilenames(), (function(messageId) {
+                this.upload((function(messageId) {
+                    console.log('ALL MEDIA UPLOADS ARE DONE! ' + messageId);
+                    socket.emit('message-upload-complete', messageId);
+                }).bind(this, messageId));
+            }).bind(this));
+        });
+        return;
+    }
+
+    sendMessage(false, function(messageId) {
+        socket.emit('message-upload-complete', messageId);
+    });
+});
+
+
+var shiftDown = false;
+var chatForm = $("#compose");
+var messageBox = $('#compose-message');
+
+$(document).keypress(function (e) {
+    if(e.keyCode == 13) {
+        if(messageBox.is(":focus") && !shiftDown) {
+            e.preventDefault(); // prevent another \n from being entered
+            chatForm.submit();
+        }
+    }
+});
+
+$(document).keydown(function (e) {
+    if(e.keyCode == 16) shiftDown = true;
+});
+
+$(document).keyup(function (e) {
+    if(e.keyCode == 16) shiftDown = false;
+});
+
+
+$('div#pending-media').on('click', 'i.material-icons', function() {
+    $(this).parent().remove();
+});
+
+function processMedia(file) {
+
+    var ext = (file.type == 'image/jpeg' ? '.jpg' : false) ||
+              (file.type == 'image/png'  ? '.png' : false) ||
+              (file.type == 'image/gif'  ? '.gif' : false) ||
+              false;
+    if (!ext) return false; // invalid media type
+
+    var $spinner = $('<div class="mdl-spinner mdl-spinner--single-color mdl-js-spinner is-active"></div>');
+    $('div#pending-media').append($spinner);
+    componentHandler.upgradeDom();
+    setTimeout(function() { $spinner.addClass('animate-visible'); }, 50);
+
+    var $mediaContainer = $('<div class="message-media mdl-shadow--2dp"><i class="material-icons">backspace</i></div>');
+
+    loadImage(
+        file,
+        function (smallImg) {
+
+            smallImg.toBlob(function (lowResBlob) {
+                $mediaContainer.data('lowres-blob', lowResBlob);
+            }, (file.type == 'image/gif') ? 'image/jpeg' : file.type);
+
+            // if gif, append raw gif
+            if (file.type == 'image/gif') {
+                var reader = new FileReader();
+                 reader.onload = function (e) {
+                     $gifImg = $('<img class="highres" src="'+e.target.result+'">');
+                     $mediaContainer.data('highres-blob', file);
+                     $mediaContainer.append($gifImg);
+                     $spinner.remove();
+                     $('div#pending-media').append($mediaContainer);
+                     updateScroll('content');
+                 }
+                 reader.readAsDataURL(file);
+                 return;
+            } else {
+                $mediaContainer.append(smallImg);
+            }
+
+
+            if (smallImg.width < 800 && smallImg.height < 600) {
+                // if image was already small, skip making a fullsize copy
+                $spinner.remove();
+                $('div#pending-media').append($mediaContainer);
+                updateScroll('content');
+                return;
+            }
+
+            // If we have a high res copy too
+            loadImage(
+                file,
+                function (largeImg) {
+                    largeImg.toBlob(function (highResBlob) {
+                        $mediaContainer.data('highres-blob', highResBlob);
+                        $spinner.remove();
+                        $('div#pending-media').append($mediaContainer);
+                        updateScroll('content');
+                    }, (file.type == 'image/gif') ? 'image/jpeg' : file.type);
+                },
+                {
+                    orientation: true,
+                    maxWidth: 2560,
+                    maxHeight: 1920,
+                    canvas: true
+                }
+            );
+        },
+        {
+            orientation: true,
+            maxWidth: 800,
+            maxHeight: 600,
+            canvas: true
+        }
+    );
+}
+
+
+var handleFileSelect = function(evt) {
+    var files = evt.target.files;
+
+    for (var i=0; i<files.length; i++) {
+        processMedia(files[i]);
+    }
+
+    $('#compose-message').focus();
+}
+
+document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+$(document).on('wake', function() {
+    console.log('Waking up...');
+    EventBus.addEventListener('chat:messages-loaded', firstMessagesLoaded);
+    scrollLock = true;
+    $('#chat-log').hide().html('');
+    $('main#content .mdl-progress').removeClass('off');
+    componentHandler.upgradeDom();
+    thisChat.reset();
+    // just reset the message log?
+    thisChat.loadMessages(20);
+});
+
+
+/**
+ * Manage scrolling...
+ */
+
+
+var stayAtBottom = function() {
+    if (($('#content')[0].scrollHeight - $('#content').scrollTop()) < 1000) {
+        scrollToBottom();
+    }
+}
+EventBus.addEventListener('chat:message-media-loaded', stayAtBottom);
+
+var scrollToBottom = function() {
+    updateScroll('content');
+}
+
+var holdCurrentScrollPos = function(event) {
+    if (!scrollLock) {
+        return;
+    }
+
+    var newPosition = $('#content').scrollTop() + $topMessage.offset().top - $topMessage.outerHeight() - 20;
+
+    $('#content').scrollTop(newPosition);
+}
+
+var $topMessage = false;
+var scrollLock = false;
+
+var finishedLoadingOldMessages = function() {
+    $('main#content .mdl-progress').addClass('off');
+    EventBus.removeEventListener('chat:messages-loaded', finishedLoadingOldMessages);
+    // Probably buggy if any images take over 250ms to load.
+    // TODO: Find a way to trigger a real event once all media is loaded.
+    setTimeout(function() {
+        scrollLock = false;
+        EventBus.removeEventListener('chat:message-loaded', holdCurrentScrollPos);
+        EventBus.removeEventListener('chat:message-media-loaded', holdCurrentScrollPos);
+    }, 250);
+}
+
+var chatLogScrolled = function() {
+    if (scrollLock || this.scrollTop >= 1) {
+        return;
+    }
+
+    console.log('Reached top. Loading more messages...');
+
+    $('main#content .mdl-progress').removeClass('off');
+
+    EventBus.addEventListener('chat:message-prepended', holdCurrentScrollPos);
+    EventBus.addEventListener('chat:message-media-loaded', holdCurrentScrollPos);
+    EventBus.addEventListener('chat:messages-loaded', finishedLoadingOldMessages);
+    setTimeout(function() {
+        $topMessage = $('.chat-message').first();
+        scrollLock  = true;
+        var before  = $('.chat-message').first().find('span.timestamp').data('timestamp');
+        thisChat.loadMessages(20, before);
+    }, 500);
+}
+
+var firstMessagesLoaded = function() {
+    console.log('Initial messages loaded!');
+    $('main#content > .mdl-progress').addClass('off');
+    setTimeout(function() {
+        $('.preload').fadeOut();
+        $('#chat-log').show();
+        scrollToBottom();
+    }, 350);
+    componentHandler.upgradeDom();
+    EventBus.removeEventListener('chat:messages-loaded', firstMessagesLoaded);
+    scrollLock = false;
+    $('main#content').on('scroll', chatLogScrolled);
+}
+
+EventBus.addEventListener('chat:messages-loaded', firstMessagesLoaded);
+EventBus.addEventListener('chat:message-appended', scrollToBottom);
+EventBus.addEventListener('chat:message-appended', function() { componentHandler.upgradeDom(); });
+
+/**
+ * Page title and favicon updating...
+ */
+var focused     = true;
+var baseTitle   = '';
+var chatsMissed = 0;
+// https://github.com/ejci/favico.js/issues/85
+$('link[rel~="icon"]').each(function(_, el){
+    $(el).data('favicon', new Favico({
+        element: el,
+        position: 'upleft',
+        animation:'popFade',
+    }));
+});
+
+function updatePageTitle() {
+    if (!focused) {
+        chatsMissed++;
+        $('link[rel~="icon"]').each(function(_, el){
+            $(el).data('favicon').badge(chatsMissed);
+        });
+        document.title = '*' + chatsMissed + ' ' + baseTitle;
+    }
+}
+
+EventBus.addEventListener('chat:message-appended', updatePageTitle);
+
+$(document).ready(function() {
+    //store the base title
+    baseTitle = document.title;
+
+    //When the window is focused...
+    $(window).focus(function() {
+        focused = true;
+        $('link[rel~="icon"]').each(function(_, el){
+            $(el).data('favicon').reset();
+        });
+        //  window.document.title = baseTitle;
+        //chrome bug: http://heyman.info/2010/oct/7/google-chrome-bug-when-setting-document-title/
+        setTimeout(function() {
+            document.title = baseTitle;
+        }, 100);
+
+        chatsMissed = 0;
+    });
+
+    $(window).blur(function() {
+        focused = false;
+    });
+});
+
+/**
+ * Emoji autocomplete
+ */
+$('textarea#compose-message').atwho({
+    at: ':',
+    data: EMOJI_LIST,
+    displayTpl: '<li><img src="//cdn.jsdelivr.net/emojione/assets/png/${unicode}.png" height="20" width="20"> ${shortname}</li>',
+    insertTpl: '${shortname}',
+    searchKey: 'keywords',
+    callbacks: {
+        filter: function(query, data, searchKey) {
+            var results1 = [];
+            var results2 = [];
+            var results3 = [];
+
+            for (var i = 0; i < data.length; i++) {
+                if (data[i].shortname.indexOf(query) > -1) {
+                    results1.push(data[i]);
+                } else {
+                    if ((data[i].aliases !== null) && (data[i].aliases.indexOf(query) > -1)) {
+                        results2.push(data[i]);
+                    } else if ((data[i].keywords !== null) && (data[i].keywords.indexOf(query) > -1)) {
+                        results3.push(data[i]);
+                    }
+                }
+            }
+
+            if (query.length >= 3) {
+                results1.sort(function(a,b) { return (a.length > b.length); });
+                results2.sort(function(a,b) { return (a.length > b.length); });
+                results3.sort();
+            }
+
+            var newResults = results1.concat(results2).concat(results3);
+
+            return newResults;
+        },
+    },
+    limit: 5
+});
+
+/**
+ * Username autocomplete
+ */
+var AUTOCOMPLETE_USERNAMES = {};
+EventBus.addEventListener('chat:message-loaded', function(evt, message){
+    AUTOCOMPLETE_USERNAMES[message.senderName] = true;
+    $('textarea#compose-message').atwho({
+        at: '@',
+        data: Object.keys(AUTOCOMPLETE_USERNAMES),
+        insertTpl: '${name}',
+    });
+});
+
+/**
+ * Paste images from clipboard
+ * Source: http://stackoverflow.com/questions/6333814/how-does-the-paste-image-from-clipboard-functionality-work-in-gmail-and-google-c
+ */
+document.onpaste = function(event){
+  var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+  for (index in items) {
+    var item = items[index];
+    if (item.kind === 'file') {
+      processMedia(item.getAsFile());
+    }
+  }
+}
+
+/**
+ * Drag and drop images
+ */
+function handleFileDropped(evt) {
+  evt.stopPropagation();
+  evt.preventDefault();
+
+  var files = evt.dataTransfer.files;
+
+  for (var i = 0, f; f = files[i]; i++) {
+    processMedia(f);
+  }
+
+  // evt.dataTransfer.getData('url')
+  // evt.dataTransfer.getData('text/html')
+  // evt.dataTransfer.getData('text/uri-list')
+  // http://stackoverflow.com/questions/11972963/accept-drag-drop-of-image-from-another-browser-window
+
+  if (evt.dataTransfer.getData('text/html')) {
+      var htmlString = evt.dataTransfer.getData('text/html');
+      if (htmlString.indexOf('<img') !== -1) {
+          htmlString = htmlString.slice(htmlString.indexOf('<img'));
+          var matches = htmlString.match(/(src)=[\'"]?((?:(?!\/>|>|"|\'|\s).)+)/i);
+
+          if (matches.length !== 3) {
+              return;
+          }
+
+          var imgSrc = matches[2];
+
+          if (imgSrc.indexOf('data:') === 0) {
+              processMedia(dataUriToBlob(imgSrc));
+              return;
+          }
+
+          if (imgSrc.indexOf('http') === 0) {
+
+            var $spinner = $('<div class="mdl-spinner mdl-spinner--single-color mdl-js-spinner is-active"></div>');
+            $('div#pending-media').append($spinner);
+            componentHandler.upgradeDom();
+            setTimeout(function() { $spinner.addClass('animate-visible'); }, 50);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/proxy/' + btoa(imgSrc), true);
+            xhr.responseType = 'blob';
+
+            xhr.onload = function(e) {
+              $spinner.remove();
+              if (this.status == 200) {
+                processMedia(this.response);
+                return;
+              }
+              showToast('Error: ' + this.statusText);
+            };
+
+            xhr.send();
+
+          } else {
+              // <img> tag that we can't handle...
+              showToast('Error: Unsupported image dropped.');
+
+          }
+      } else {
+          // No <img> tag in the beginning...
+          showToast('Error: Unsupported content dropped.');
+      }
+  }
+}
+
+function handleDragOver(evt) {
+  evt.stopPropagation();
+  evt.preventDefault();
+  evt.dataTransfer.dropEffect = 'copy';
+}
+
+var dropZone = document.body;
+dropZone.addEventListener('dragover', handleDragOver, false);
+dropZone.addEventListener('drop', handleFileDropped, false);
+
+function dataUriToBlob(dataURI) {
+  // convert base64 to raw binary data held in a string
+  // doesn't handle URLEncoded DataURIs - see SO answer #6850276 for code that does this
+  var byteString = atob(dataURI.split(',')[1]);
+
+  // separate out the mime component
+  var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
+
+  // write the bytes of the string to an ArrayBuffer
+  var ab = new ArrayBuffer(byteString.length);
+  var ia = new Uint8Array(ab);
+  for (var i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+  }
+
+  // write the ArrayBuffer to a blob, and you're done
+  var blob = new Blob([ab], {type: mimeString});
+  return blob;
+
+  // Old code
+  // var bb = new BlobBuilder();
+  // bb.append(ab);
+  // return bb.getBlob(mimeString);
+}
+
+
+function showToast(text) {
+  document.getElementById('chat-snackbar')
+      .MaterialSnackbar
+      .showSnackbar({message: text, timeout: 3000});
+}
+
+</script>

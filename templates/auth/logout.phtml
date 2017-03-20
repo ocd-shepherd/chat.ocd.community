@@ -1,0 +1,13 @@
+<section id="content">
+<form method="post" action="<?= $this->url('auth-logout') ?>" class="auth">
+
+    <h1>Wait! You're not logged out yet.</h1>
+
+    <p>Click the button below to log out.</p>
+
+    <input type="hidden" name="__csrf_value" value="<?= $this->csrfToken() ?>">
+
+    <input type="submit" value="Logout">
+
+</form>
+</section>

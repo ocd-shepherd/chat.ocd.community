@@ -1,0 +1,32 @@
+{
+    "require": {
+        "doctrine/dbal": "^2.5.4",
+        "doctrine/migrations": "^1.4.1",
+        "zendframework/zend-expressive": "^1.0",
+        "zendframework/zend-expressive-fastroute": "^1.2",
+        "zendframework/zend-servicemanager": "^3.1",
+        "zendframework/zend-expressive-zendviewrenderer": "^1.1",
+        "zendframework/zend-crypt": "^3.1",
+        "mtymek/expressive-config-manager": "^0.4.0",
+        "aura/session": "^2.1",
+        "sandrokeil/interop-config": "^1.0",
+        "roave/security-advisories": "dev-master",
+        "ramsey/uuid": "^3.5",
+        "respect/validation": "^1.1",
+        "bjeavons/zxcvbn-php": "^0.2.0",
+        "predis/predis": "^1.1"
+
+    },
+    "require-dev": {
+        "filp/whoops": "^1.1 || ^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "EvantSource\\": "src/EvantSource/",
+            "Auth\\": "src/Auth/",
+            "Common\\": "src/Common/",
+            "Community\\": "src/Community/",
+            "Chat\\": "src/Chat/"
+        }
+    }
+}

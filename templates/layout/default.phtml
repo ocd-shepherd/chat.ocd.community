@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <?= $this->headTitle('OChatD')->setSeparator(' - ')->setAutoEscape(false) ?>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FFFFF">
+    <link rel="stylesheet" href="/normalize.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/history.js/1.8/bundled/html5/jquery.history.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown.js/0.5.0/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.17.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/autolinker/1.4.0/Autolinker.min.js"></script>
+
+    <script src="/eventbus.min.js"></script>
+
+
+
+    <script src="/global.js"></script>
+    <script src="/media-manager.js"></script>
+</head>
+<body>
+<?php $user = false; ?>
+    <nav>
+
+        <img class="logo inline-svg" src="/chat.svg">
+
+        <input type="checkbox" id="show-menu" role="button" aria-label="Toggle Menu" autocomplete="off">
+
+        <label for="show-menu" class="show-menu">
+            <s class="bar"></s>
+            <s class="bar"></s>
+            <s class="bar"></s>
+        </label>
+
+        <ul>
+            <? if ($this->ident()): ?>
+                <li><a href="<?= $this->url('community-chat', ['community' => 'ocd']) ?>">OChatD</a></li>
+                <li><a href="<?= $this->url('avatar-form') ?>">Change Avatar</a></li>
+                <li><a href="<?= $this->url('auth-logout') ?>">Logout</a></li>
+            <? else: ?>
+                <li><a href="<?= $this->url('auth-login-form') ?>">Login</a></li>
+                <li><a href="<?= $this->url('auth-register-form') ?>">Register</a></li>
+            <? endif ?>
+        </ul>
+    </nav>
+
+    <?= $this->content ?>
+
+</body>
+</html>

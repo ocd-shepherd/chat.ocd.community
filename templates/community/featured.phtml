@@ -1,0 +1,17 @@
+<script src="https://d3js.org/d3.v4.min.js"></script>
+
+<ul class="communities">
+<? foreach ($communities as $community): ?>
+    <li><a href="<?= $this->url('community-chat', ['community' => $community->path]) ?>"><?= $community->name ?></a></li>
+<? endforeach; ?>
+</ul>
+
+
+<script>
+var color = d3.scaleOrdinal(d3.schemeCategory20);
+
+$(document).ready(function() {
+    d3.select('ul.communities > li').style('background-color', function() { return color(this.getAttribute('href')); });
+});
+
+</script>
